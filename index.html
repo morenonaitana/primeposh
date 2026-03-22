@@ -16,55 +16,51 @@
 
     body {
       min-height: 100%;
-      background: #2a2a2a;
+      background: #1a1a1a;
       overflow-x: hidden;
+      touch-action: pan-y pinch-zoom;
     }
 
-    #loading-screen {
-      position: fixed;
-      inset: 0;
-      z-index: 10;
-      background: #1a1a1a;
+    #splash {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 32px;
+      gap: 28px;
+      padding: 60px 24px;
       transition: opacity .5s ease;
     }
 
-    #loading-screen.hidden {
+    #splash.hidden {
       opacity: 0;
       pointer-events: none;
+      position: absolute;
     }
 
-    #loading-screen h1 {
+    #splash h1 {
       font-family: "Georgia", "Times New Roman", serif;
       color: #e8e0d6;
-      font-size: 1.6rem;
+      font-size: 1.5rem;
       font-weight: 400;
       letter-spacing: .12em;
       text-transform: uppercase;
       text-align: center;
-      padding: 0 24px;
     }
 
     .spinner {
-      width: 36px;
-      height: 36px;
-      border: 2px solid rgba(232,224,214,.15);
+      width: 32px;
+      height: 32px;
+      border: 2px solid rgba(232,224,214,.12);
       border-top-color: #e8e0d6;
       border-radius: 50%;
       animation: spin .8s linear infinite;
     }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     #progress {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      color: rgba(232,224,214,.45);
+      color: rgba(232,224,214,.4);
       font-size: 13px;
     }
 
@@ -73,25 +69,24 @@
       flex-direction: column;
       align-items: center;
       gap: 4px;
-      padding: 4px 0;
+      padding: 0 0 4px;
     }
 
     canvas {
       display: block;
       width: 100%;
       height: auto;
-      box-shadow: 0 2px 12px rgba(0,0,0,.4);
     }
 
     @media (min-width: 768px) {
-      #viewer { gap: 8px; padding: 8px 0; }
-      canvas { max-width: 900px; }
-      #loading-screen h1 { font-size: 2rem; }
+      #viewer { gap: 8px; padding-bottom: 8px; }
+      canvas { max-width: 960px; box-shadow: 0 2px 16px rgba(0,0,0,.5); }
+      #splash h1 { font-size: 2rem; }
     }
   </style>
 </head>
 <body>
-  <div id="loading-screen">
+  <div id="splash">
     <h1>Primeposh Perfume Catalog</h1>
     <div class="spinner"></div>
     <div id="progress">Loading…</div>
@@ -102,23 +97,24 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
     function getScale(page) {
-      var w = Math.min(window.innerWidth, 900);
+      var w = Math.min(document.documentElement.clientWidth, 960);
       var dpr = window.devicePixelRatio || 1;
       return (w / page.getViewport({ scale: 1 }).width) * dpr;
     }
 
     async function render() {
+      var splash = document.getElementById("splash");
       var progress = document.getElementById("progress");
-      var loadingScreen = document.getElementById("loading-screen");
+      var viewer = document.getElementById("viewer");
 
       try {
         progress.textContent = "Loading PDF…";
         var pdf = await pdfjsLib.getDocument("catalog.pdf").promise;
-        var viewer = document.getElementById("viewer");
         var total = pdf.numPages;
 
         for (var i = 1; i <= total; i++) {
           progress.textContent = "Rendering page " + i + " of " + total + "…";
+
           var page = await pdf.getPage(i);
           var scale = getScale(page);
           var viewport = page.getViewport({ scale: scale });
@@ -126,11 +122,16 @@
           canvas.width = viewport.width;
           canvas.height = viewport.height;
           viewer.appendChild(canvas);
-          await page.render({ canvasContext: canvas.getContext("2d"), viewport: viewport }).promise;
-        }
 
-        loadingScreen.classList.add("hidden");
-        setTimeout(function() { loadingScreen.style.display = "none"; }, 600);
+          await page.render({
+            canvasContext: canvas.getContext("2d"),
+            viewport: viewport
+          }).promise;
+
+          if (i === 1) {
+            splash.classList.add("hidden");
+          }
+        }
       } catch (e) {
         progress.textContent = "Failed to load: " + e.message;
       }
